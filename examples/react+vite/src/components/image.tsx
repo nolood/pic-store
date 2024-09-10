@@ -4,16 +4,15 @@ import { decode } from "blurhash";
 interface PictureProps {
   width?: number;
   height?: number;
-  debug?: boolean;
+  fileId: number | string;
+  hashBlur?: string;
 }
 
-const Image: React.FC<PictureProps> = ({ width = 200, height = 200 }) => {
-  const [hash, setHash] = useState<string>("");
+const Image: React.FC<PictureProps> = ({ width = 200, height = 200, fileId, hashBlur }) => {
+  const [hash, setHash] = useState<string>(hashBlur ?? "");
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [_interval, _setInterval] = useState<Timer | null>(null);
-  const [timeToLoad, setTimeToLoad] = useState(0);
-  const fileId = 4;
+  const [isLoadCompleted, setIsLoadCompleted] = useState(false);
 
   useEffect(() => {
     const getThumb = async () => {
@@ -21,7 +20,9 @@ const Image: React.FC<PictureProps> = ({ width = 200, height = 200 }) => {
         method: "GET",
       });
       const data = await response.json();
-      setHash(data.hashBlur as string);
+
+      setHash(data.hashBlur);
+      setImageSrc(data.path);
     };
 
     void getThumb();
@@ -41,30 +42,9 @@ const Image: React.FC<PictureProps> = ({ width = 200, height = 200 }) => {
     }
   }, [hash, width, height]);
 
-  useEffect(() => {
-    const loadImage = async () => {
-      const imageResponse = await fetch(`http://localhost:5000/uploads/${fileId}`);
-      const blob = await imageResponse.blob();
-      const imageURL = URL.createObjectURL(blob);
-      setImageSrc(imageURL);
-    };
-
-    void loadImage();
-  }, [fileId]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeToLoad((prev) => prev + 1);
-    }, 1000)
-
-    _setInterval(interval)
-
-    return () => clearInterval(interval)
-  }, [])
-
   return (
     <div style={{ position: "relative", width, height }}>
-      {hash && !imageSrc && (
+      {hash && !isLoadCompleted && (
         <canvas
           ref={canvasRef}
           width={width}
@@ -75,21 +55,12 @@ const Image: React.FC<PictureProps> = ({ width = 200, height = 200 }) => {
 
       {imageSrc && (
         <img
-          src={imageSrc}
+          src={"http://localhost:5000/static" + imageSrc}
           alt="Picture"
           style={{ width, height, position: "relative", zIndex: 2 }}
-          onLoad={() => {
-            if (canvasRef.current) {
-              canvasRef.current.style.display = "none";
-            }
-
-            if (_interval) {
-              clearInterval(_interval);
-            }
-          }}
+          onLoad={() => setIsLoadCompleted(true)}
         />
       )}
-      {timeToLoad}
     </div>
   );
 };

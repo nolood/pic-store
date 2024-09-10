@@ -1,23 +1,12 @@
 import { db } from "./../db/db";
-import { readFileSync, statSync, writeFileSync } from "fs";
+import { readFileSync, statSync, unlinkSync, writeFileSync } from "fs";
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "../utils/constants";
 import sharp from "sharp";
 import { pictureTable } from "../db/schemas/picture.schema";
 import { eq } from "drizzle-orm";
 import { encode } from "blurhash";
-import { existsSync, mkdirSync } from "fs";
-
-export const generateFilePath = (filename: string) => {
-  const year = new Date().getFullYear();
-  const month = new Date().getMonth();
-  const dir = `./uploads/${year}/${month}`;
-
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-
-  return `${dir}/${Date.now()}-${filename.split(".").slice(0, -1).join(".")}.webp`;
-};
+import { generateFilePath } from "../utils/generate-path";
+import { getPath } from "../utils/get-path";
 
 const generateHashBlur = async (imageBuffer: Buffer): Promise<string> => {
   const { data, info } = await sharp(imageBuffer)
@@ -81,7 +70,7 @@ const getPicture = async (_id: string, isThumb: boolean = false) => {
   }
 
   if (isThumb) {
-    const path = pic.path.replace("./uploads", "");
+    const path = getPath(pic.path);
 
     return {
       path: path,

@@ -1,5 +1,7 @@
-import { pictureTable } from './picture.schema';
+import { pdfTable } from "./pdf.schema";
+import { pictureTable } from "./picture.schema";
 
 export const schema = {
-	picture: pictureTable
-}
+  picture: pictureTable,
+  pdf: pdfTable,
+};
