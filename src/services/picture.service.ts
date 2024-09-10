@@ -1,18 +1,42 @@
-import { db } from './../db/db';
+import { db } from "./../db/db";
 import { readFileSync, statSync, writeFileSync } from "fs";
-import { generateFilePath } from "../utils/generate-file-path"
-import { generateHashBlur } from "../utils/generate-hash-blur";
 import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "../utils/constants";
 import sharp from "sharp";
-import { pictureTable } from '../db/schemas/picture.schema';
-import { eq } from 'drizzle-orm';
+import { pictureTable } from "../db/schemas/picture.schema";
+import { eq } from "drizzle-orm";
+import { encode } from "blurhash";
+import { existsSync, mkdirSync } from "fs";
+
+export const generateFilePath = (filename: string) => {
+  const year = new Date().getFullYear();
+  const month = new Date().getMonth();
+  const dir = `./uploads/${year}/${month}`;
+
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+
+  return `${dir}/${Date.now()}-${filename.split(".").slice(0, -1).join(".")}.webp`;
+};
+
+const generateHashBlur = async (imageBuffer: Buffer): Promise<string> => {
+  const { data, info } = await sharp(imageBuffer)
+    .raw()
+    .ensureAlpha()
+    .resize(20, 20)
+    .toBuffer({ resolveWithObject: true });
+
+  const blurHash = encode(new Uint8ClampedArray(data), info.width, info.height, 4, 4);
+
+  return blurHash;
+};
 
 const writePicture = async (file: File) => {
-	if (!file || !(file instanceof File)) {
+  if (!file || !(file instanceof File)) {
     throw new Error("Invalid file");
   }
 
-	if (file.size > MAX_FILE_SIZE) {
+  if (file.size > MAX_FILE_SIZE) {
     throw new Error("File too large. Max file size is 5MB");
   }
 
@@ -20,56 +44,59 @@ const writePicture = async (file: File) => {
     throw new Error("Invalid file type");
   }
 
-	const filePath = generateFilePath(file.name);
-	const fileBuffer = await file.arrayBuffer();
-	const buffer = Buffer.from(fileBuffer);
-	const webpBuffer = await sharp(buffer)
-    .webp()
-    .toBuffer();
+  const filePath = generateFilePath(file.name);
+  const fileBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(fileBuffer);
+  const webpBuffer = await sharp(buffer).webp().toBuffer();
 
+  const hashBlur = await generateHashBlur(Buffer.from(webpBuffer));
 
-	const hashBlur = await generateHashBlur(Buffer.from(webpBuffer));
-
-	const [{ id }] = await db.insert(pictureTable)
-		.values({ hashBlur, path: filePath })
-		.returning({ id: pictureTable.id });
+  const [{ id }] = await db
+    .insert(pictureTable)
+    .values({ hashBlur, path: filePath })
+    .returning({ id: pictureTable.id });
 
   writeFileSync(filePath, Buffer.from(webpBuffer));
 
-	return { fileId: id, hashBlur }
-}
+  return { fileId: id, hashBlur };
+};
 
 const getPicture = async (_id: string, isThumb: boolean = false) => {
-	const id = parseInt(_id);
+  const id = parseInt(_id);
 
-	if (!id) {
-		throw new Error("Invalid fileId");
-	}
+  if (!id) {
+    throw new Error("Invalid fileId");
+  }
 
-	const pic = await db.query.picture.findFirst({
-		columns: {
-			path: true,
-			hashBlur: true,
-		},
-		where: (it) => eq(it.id, id),
-	})
+  const pic = await db.query.picture.findFirst({
+    columns: {
+      path: true,
+      hashBlur: true,
+    },
+    where: (it) => eq(it.id, id),
+  });
 
-	if (!pic) {
-		throw new Error("Picture not found");
-	}
+  if (!pic) {
+    throw new Error("Picture not found");
+  }
 
-	if (isThumb) {
-		return pic.hashBlur;
-	}
+  if (isThumb) {
+    const path = pic.path.replace("./uploads", "");
+
+    return {
+      path: path,
+      hashBlur: pic.hashBlur,
+    };
+  }
 
   statSync(pic.path);
 
-	const fileBuffer = readFileSync(pic.path);
+  const fileBuffer = readFileSync(pic.path);
 
-	return fileBuffer;
-}
+  return fileBuffer;
+};
 
 export const pictureService = {
-	writePicture,
-	getPicture,
-}
+  writePicture,
+  getPicture,
+};

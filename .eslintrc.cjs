@@ -19,7 +19,6 @@ const config = {
     "@typescript-eslint/consistent-type-definitions": "off",
     "@typescript-eslint/require-await": "off",
     "@typescript-eslint/no-unnecessary-type-assertion": "warn",
-
     "@typescript-eslint/consistent-type-imports": [
       "warn",
       {

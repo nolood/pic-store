@@ -1,14 +1,27 @@
-
-import { Hono } from 'hono';
-import { statSync, readFileSync } from 'fs';
-import { poweredBy } from 'hono/powered-by';
-import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from './utils/constants';
-import path from 'path';
-import { pictureService } from './services/picture.service';
+import { Hono } from "hono";
+import { poweredBy } from "hono/powered-by";
+import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "./utils/constants";
+import { pictureService } from "./services/picture.service";
+import { cors } from "hono/cors";
+import { serveStatic } from "hono/bun";
 
 const app = new Hono();
 
-app.use('*', poweredBy());
+app.use("*", poweredBy());
+app.use("*", cors({ origin: "*" }));
+
+const staticRoot = "./uploads";
+
+app.use(
+  "/static/*",
+  serveStatic({
+    root: staticRoot,
+    rewriteRequestPath: (path) => path.replace(/^\/static\//, ""),
+    onNotFound: (path, c) => {
+      console.log(`${path} is not found, you access ${c.req.path}`);
+    },
+  }),
+);
 
 app.post("/upload", async (c) => {
   try {
@@ -29,20 +42,20 @@ app.post("/upload", async (c) => {
 
     const data = await pictureService.writePicture(file);
 
-    return c.json(data)
+    return c.json(data);
   } catch (err) {
     if (err instanceof Error) {
       return c.json({ error: err.message }, 400);
     }
 
-    return c.json({ error: 'Something went wrong' }, 500);
+    return c.json({ error: "Something went wrong" }, 500);
   }
-})
+});
 
-app.get('/uploads/:id', async (c) => {
+app.get("/uploads/:id", async (c) => {
   try {
-    const id = c.req.param('id');
-    const thumb = c.req.query('thumb');
+    const id = c.req.param("id");
+    const thumb = c.req.query("thumb");
 
     if (!id) {
       throw new Error("Invalid fileId");
@@ -50,30 +63,26 @@ app.get('/uploads/:id', async (c) => {
 
     if (thumb) {
       const picture = await pictureService.getPicture(id, true);
-
-      return c.json(picture)
+      return c.json(picture);
     }
 
-    const picture = await pictureService.getPicture(id);
+    const picture = (await pictureService.getPicture(id)) as Buffer;
 
     return new Response(picture, {
       headers: {
-        'Content-Type': 'image/webp'
-      }
-    })
-
+        "Content-Type": "image/webp",
+      },
+    });
   } catch (e) {
     if (e instanceof Error) {
       return c.json({ error: e.message }, 400);
     }
 
-    return c.json({ error: 'Something went wrong' }, 500);
+    return c.json({ error: "Something went wrong" }, 500);
   }
 });
-
 
 export default {
   port: 5000,
   fetch: app.fetch,
 };
-
