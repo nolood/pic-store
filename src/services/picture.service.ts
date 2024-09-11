@@ -38,19 +38,23 @@ const writePicture = async (file: File) => {
   const buffer = Buffer.from(fileBuffer);
   const webpBuffer = await sharp(buffer).webp().toBuffer();
 
+  const thumbPath = generateFilePath("thumb" + file.name);
+  const thumbBuffer = await sharp(webpBuffer).blur(1).resize(10).toBuffer();
+
   const hashBlur = await generateHashBlur(Buffer.from(webpBuffer));
 
   const [{ id }] = await db
     .insert(pictureTable)
-    .values({ hashBlur, path: filePath })
+    .values({ hashBlur, path: filePath, thumbPath })
     .returning({ id: pictureTable.id });
 
   writeFileSync(filePath, Buffer.from(webpBuffer));
+  writeFileSync(thumbPath, Buffer.from(thumbBuffer));
 
   return { fileId: id, hashBlur };
 };
 
-const getPicture = async (_id: string, isThumb: boolean = false) => {
+const getPicture = async (_id: string, isThumb: boolean = false, isBuffer?: boolean) => {
   const id = parseInt(_id);
 
   if (!id) {
@@ -58,10 +62,6 @@ const getPicture = async (_id: string, isThumb: boolean = false) => {
   }
 
   const pic = await db.query.picture.findFirst({
-    columns: {
-      path: true,
-      hashBlur: true,
-    },
     where: (it) => eq(it.id, id),
   });
 
@@ -70,10 +70,19 @@ const getPicture = async (_id: string, isThumb: boolean = false) => {
   }
 
   if (isThumb) {
+    if (isBuffer) {
+      statSync(pic.thumbPath);
+
+      const fileBuffer = readFileSync(pic.thumbPath);
+
+      return fileBuffer;
+    }
+
     const path = getPath(pic.path);
 
     return {
       path: path,
+      thumbPath: path,
       hashBlur: pic.hashBlur,
     };
   }

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { PDFiumLibrary } from "@hyzyla/pdfium";
-import { existsSync, statSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, statSync, unlinkSync, writeFileSync } from "fs";
 import { join } from "path";
 import sharp from "sharp";
 import { generateFilePath } from "../utils/generate-path";
@@ -70,7 +70,7 @@ const writePdf = async (file: File) => {
   return { fileId: pdf.id, path, previewPath };
 };
 
-const getPdf = async (_id: string) => {
+const getPdf = async (_id: string, isThumb?: boolean, isBuffer?: boolean) => {
   const id = parseInt(_id);
 
   if (!id) {
@@ -83,12 +83,32 @@ const getPdf = async (_id: string) => {
     throw new Error("File not found");
   }
 
+  statSync(pdf.previewPath);
+
+  if (isThumb) {
+    if (isBuffer) {
+      const fileBuffer = readFileSync(pdf.previewPath);
+
+      return fileBuffer;
+    }
+
+    const thumbPath = getPath(pdf.previewPath);
+    const path = getPath(pdf.path);
+
+    return { thumbPath, path };
+  }
+
   statSync(pdf.path);
+  if (isBuffer) {
+    const pdfBuffer = readFileSync(pdf.path);
+
+    return pdfBuffer;
+  }
 
   const path = getPath(pdf.path);
-  const previewPath = getPath(pdf.previewPath);
+  const thumbPath = getPath(pdf.previewPath);
 
-  return { id: pdf.id, path, previewPath };
+  return { id: pdf.id, path, thumbPath };
 };
 
 export const pdfService = {

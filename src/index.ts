@@ -5,6 +5,7 @@ import { pictureService } from "./services/picture.service";
 import { cors } from "hono/cors";
 import { serveStatic } from "hono/bun";
 import { pdfService } from "./services/pdf.service";
+import sharp from "sharp";
 
 const app = new Hono();
 
@@ -55,8 +56,20 @@ app.post("/pdf/upload", async (c) => {
 app.get("/pdf/uploads/:id", async (c) => {
   try {
     const id = c.req.param("id");
+    const thumb = c.req.query("thumb");
+    const buffer = c.req.query("buffer");
 
-    const pdf = await pdfService.getPdf(id);
+    if (!!thumb) {
+      const pdf = await pdfService.getPdf(id, !!thumb, !!buffer);
+
+      if (!!buffer) {
+        return new Response(pdf as Buffer);
+      }
+
+      return c.json(pdf);
+    }
+
+    const pdf = await pdfService.getPdf(id, !!thumb, !!buffer);
 
     return c.json(pdf);
   } catch (err) {
@@ -101,23 +114,36 @@ app.get("/uploads/:id", async (c) => {
   try {
     const id = c.req.param("id");
     const thumb = c.req.query("thumb");
+    const w = c.req.query("w");
+    const q = c.req.query("q");
+    const buffer = c.req.query("buffer");
 
     if (!id) {
       throw new Error("Invalid fileId");
     }
 
     if (thumb) {
-      const picture = await pictureService.getPicture(id, true);
+      const picture = await pictureService.getPicture(id, true, !!buffer);
+
+      if (!!buffer) {
+        return new Response(picture as Buffer, {
+          headers: {
+            "Content-Type": "image/webp",
+          },
+        });
+      }
+
       return c.json(picture);
     }
 
     const picture = (await pictureService.getPicture(id)) as Buffer;
 
-    return new Response(picture, {
-      headers: {
-        "Content-Type": "image/webp",
-      },
-    });
+    const resizedImageBuffer = await sharp(picture)
+      .webp({ quality: q ? parseInt(q) : 75 })
+      .resize(w ? parseInt(w) : 200)
+      .toBuffer();
+
+    return new Response(resizedImageBuffer);
   } catch (e) {
     if (e instanceof Error) {
       return c.json({ error: e.message }, 400);
