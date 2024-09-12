@@ -1,6 +1,6 @@
 import { db } from "./../db/db";
 import { readFileSync, statSync, unlinkSync, writeFileSync } from "fs";
-import { ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "../utils/constants";
+import { ALLOWED_EXTENSIONS, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "../utils/constants";
 import sharp from "sharp";
 import { pictureTable } from "../db/schemas/picture.schema";
 import { eq } from "drizzle-orm";
@@ -20,6 +20,22 @@ const generateHashBlur = async (imageBuffer: Buffer): Promise<string> => {
   return blurHash;
 };
 
+const validateImageContent = async (fileBuffer: Buffer) => {
+  try {
+    const metadata = await sharp(fileBuffer).metadata();
+
+    if (!metadata.format) {
+      throw new Error("Invalid image format");
+    }
+
+    if (metadata.width && metadata.width > 5000) {
+      throw new Error("Image width exceeds limit");
+    }
+  } catch (err) {
+    throw new Error("Invalid or corrupted image file");
+  }
+};
+
 const writePicture = async (file: File) => {
   if (!file || !(file instanceof File)) {
     throw new Error("Invalid file");
@@ -33,8 +49,15 @@ const writePicture = async (file: File) => {
     throw new Error("Invalid file type");
   }
 
+  if (!ALLOWED_EXTENSIONS.includes(file.name.split(".")[1])) {
+    throw new Error("Invalid file extension");
+  }
+
   const filePath = generateFilePath(file.name);
   const fileBuffer = await file.arrayBuffer();
+
+  validateImageContent(Buffer.from(fileBuffer));
+
   const buffer = Buffer.from(fileBuffer);
   const webpBuffer = await sharp(buffer).webp().toBuffer();
 

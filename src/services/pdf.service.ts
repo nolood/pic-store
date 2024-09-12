@@ -32,7 +32,7 @@ const createPdfPreview = async (buffer: Buffer) => {
       channels: 4,
     },
   })
-    .webp({ quality: 80 })
+    .webp({ quality: 60 })
     .toBuffer();
 
   if (existsSync(join(__dirname, "./temp.pdf"))) {

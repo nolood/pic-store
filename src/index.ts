@@ -102,6 +102,7 @@ app.post("/upload", async (c) => {
 
     return c.json(data);
   } catch (err) {
+    console.error(err);
     if (err instanceof Error) {
       return c.json({ error: err.message }, 400);
     }

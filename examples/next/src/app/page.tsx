@@ -5,7 +5,7 @@ import PdfPreview from "~/shared/ui/pdf-image";
 import SmartImage from "~/shared/ui/smart-image";
 
 const itemsImg: number[] = [];
-const itemsPdf: number[] = [];
+const itemsPdf: { path: string; fileId: number }[] = [];
 
 const uploadImage = async (data: FormData) => {
   "use server";
@@ -32,8 +32,8 @@ const uploadPdf = async (data: FormData) => {
   });
 
   if (res.ok) {
-    const data: { fileId: number } = await res.json();
-    itemsPdf.push(data.fileId);
+    const data: { fileId: number; path: string } = await res.json();
+    itemsPdf.push(data);
   }
 
   revalidatePath("/");
@@ -86,13 +86,13 @@ export default function Home() {
           <button className="bg-slate-400 p-2">Upload</button>
         </form>
 
-        <div className="w-[440px] h-[250px] overflow-hidden rounded-md">
-          <PdfPreview fileId={1} />
+        <div className="w-[250px] h-[300px] overflow-hidden rounded-md">
+          <PdfPreview path="/2024/8/1726037064860-sample.pdf" fileId={1} />
         </div>
 
-        {itemsPdf.map((id) => (
-          <div key={id} className="w-[440px] h-[250px] overflow-hidden rounded-md">
-            <PdfPreview fileId={id} />
+        {itemsPdf.map(({ fileId, path }) => (
+          <div key={fileId} className="w-[250px] h-[300px] overflow-hidden rounded-md">
+            <PdfPreview path={path} fileId={fileId} />
           </div>
         ))}
       </div>
