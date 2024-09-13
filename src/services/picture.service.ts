@@ -1,5 +1,5 @@
 import { db } from "./../db/db";
-import { readFileSync, statSync, unlinkSync, writeFileSync } from "fs";
+import { readFileSync, statSync, writeFileSync } from "fs";
 import { ALLOWED_EXTENSIONS, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "../utils/constants";
 import sharp from "sharp";
 import { pictureTable } from "../db/schemas/picture.schema";

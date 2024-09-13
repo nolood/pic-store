@@ -37,6 +37,12 @@ export default function RootLayout({
           <Link className="bg-teal-200 rounded-md h-max text-slate-900 p-2" href="/200">
             ImageCanvas 100
           </Link>
+          <Link className="bg-teal-200 rounded-md h-max text-slate-900 p-2" href="/200">
+            ImageCanvas 100
+          </Link>
+          <Link className="bg-teal-200 rounded-md h-max text-slate-900 p-2" href="/upload">
+            Upload with progress
+          </Link>
         </div>
         <div className="mt-[200px]">{children}</div>
       </body>
